@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>My Games</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .top-buttons {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      padding: 10px;
+      font-size: 1rem;
+      width: 200px;
+      margin: 6px 6px 6px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 10px 16px;
+      font-size: 1rem;
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+
+    button:hover {
+      background-color: #3367d6;
+    }
+
+    .game-card {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #ccc;
+      padding: 16px;
+      margin-bottom: 24px;
+      border-radius: 10px;
+      background-color: white;
+      box-shadow: 2px 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .game-top {
+      display: flex;
+    }
+
+    .game-card img {
+      width: 200px;
+      height: auto;
+      border-radius: 8px;
+      margin-right: 20px;
+      object-fit: cover;
+    }
+
+    .game-info {
+      flex: 1;
+    }
+
+    .optional {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .comments {
+      margin-top: 10px;
+    }
+
+    .note {
+      font-size: 0.9rem;
+      color: gray;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="top-buttons">
+    <button onclick="location.href='games.html'">All Games</button>
+    <button onclick="location.href='home.html'">Back to Home</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <h2>My Games</h2>
+  <div id="gameList">Loading your games...</div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "index.html";
+
+    async function loadGames() {
+      try {
+        const response = await fetch("http://localhost:8080/games/my-games", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) throw new Error("Failed to load games");
+
+        const games = await response.json();
+        const gameListDiv = document.getElementById("gameList");
+
+        if (games.length === 0) {
+          gameListDiv.innerText = "No games found in your library.";
+          return;
+        }
+
+        gameListDiv.innerHTML = games.map(game => {
+          const safeId = encodeURIComponent(game.title);
+          const comments = game.allComments?.map(c =>
+            `<li><strong>${c.userName}</strong>: ${c.content}</li>`
+          ).join('') || "<li>No comments yet</li>";
+
+          const optional = Object.entries(game.optionalFields || {})
+            .map(([key, value]) => `<div class='optional'><strong>${key}:</strong> ${value}</div>`)
+            .join('');
+
+          const stars = game.rating
+            ? '★'.repeat(Math.round(game.rating)) + '☆'.repeat(5 - Math.round(game.rating))
+            : 'Not rated yet';
+
+          const playedHours = parseFloat(game.playTime || 0);
+          let actionSection = '';
+
+          if (playedHours >= 1) {
+            if (game.ratingEnabled) {
+              actionSection += `
+                <input type="number" min="1" max="5" id="rate-${safeId}" placeholder="1-5" />
+                <button onclick="rateGame('${game.title}')">Rate</button>
+              `;
+            } else {
+              actionSection += `<div class='note'>Rating is currently disabled for this game.</div>`;
+            }
+
+            if (game.commentEnabled) {
+              actionSection += `
+                <input type="text" id="comment-${safeId}" placeholder="Your comment" />
+                <button onclick="commentGame('${game.title}')">Comment</button>
+              `;
+            } else {
+              actionSection += `<div class='note'>Commenting is currently disabled for this game.</div>`;
+            }
+          } else {
+            actionSection = `<div class='note'>You need to play at least 1 hour to rate or comment.</div>`;
+          }
+
+          return `
+            <div class="game-card">
+              <div class="game-top">
+                <img src="${game.photo}" alt="${game.title}">
+                <div class="game-info">
+                  <h3>${game.title}</h3>
+                  <strong>Genre:</strong> ${game.genre}<br>
+                  <strong>Rating:</strong> ${stars}<br>
+                  <strong>Total Play Time:</strong> ${playedHours} hrs<br>
+                  ${optional}
+                </div>
+              </div>
+
+              <div class="interaction">
+                <input type="number" min="0.1" step="0.1" id="play-${safeId}" placeholder="Hours" />
+                <button onclick="playGame('${game.title}')">Play</button>
+                <div id="action-section-${safeId}">${actionSection}</div>
+              </div>
+
+              <div class="comments">
+                <strong>Your Comments:</strong>
+                <ul>${comments}</ul>
+              </div>
+
+              <div class="remove">
+                <button onclick="removeGameFromUser('${game.title}')">Remove from My Library</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        document.getElementById("gameList").innerText = "Error loading games.";
+      }
+    }
+
+    async function playGame(title) {
+      const hours = document.getElementById(`play-${encodeURIComponent(title)}`).value;
+      const response = await fetch(`http://localhost:8080/users/play?gameTitle=${encodeURIComponent(title)}&hours=${hours}`, {
+        method: 'POST',
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      alert(await response.text());
+      loadGames();
+    }
+
+    async function removeGameFromUser(title) {
+      const res = await fetch(`http://localhost:8080/users/remove-from-user?gameTitle=${encodeURIComponent(title)}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      const msg = await res.text();
+      alert(msg);
+      if (res.ok) loadGames();
+    }
+
+    async function rateGame(title) {
+      const rating = document.getElementById(`rate-${encodeURIComponent(title)}`).value;
+      const response = await fetch(`http://localhost:8080/users/rate?gameTitle=${encodeURIComponent(title)}&rating=${rating}`, {
+        method: 'POST',
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      alert(await response.text());
+      loadGames();
+    }
+
+    async function commentGame(title) {
+      const content = document.getElementById(`comment-${encodeURIComponent(title)}`).value;
+      const response = await fetch(`http://localhost:8080/users/comment?gameTitle=${encodeURIComponent(title)}&content=${encodeURIComponent(content)}`, {
+        method: 'POST',
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      alert(await response.text());
+      loadGames();
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      window.location.href = "index.html";
+    }
+
+    loadGames();
+  </script>
+</body>
+</html>

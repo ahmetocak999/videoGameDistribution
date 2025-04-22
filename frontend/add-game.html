@@ -1,0 +1,111 @@
+<!-- add-game.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f2f2f2;
+      padding: 40px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background-color: #fff;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 12px;
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #357ab7;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="text-align:right; margin-bottom: 16px;">
+      <button onclick="window.location.href='admin.html'" style="padding: 8px 16px; background-color: #4a90e2; color: white; border: none; border-radius: 6px; cursor: pointer;">⬅ Back to Admin Panel</button>
+    </div>
+    <h2>Add New Game</h2>
+    <form id="addGameForm">
+      <label>Title</label>
+      <input type="text" id="title" required>
+
+      <label>Genre</label>
+      <input type="text" id="genre" required>
+
+      <label>Photo URL</label>
+      <input type="text" id="photo" required>
+
+      <label>Optional Fields (as JSON)</label>
+      <textarea id="optionalFields" rows="5">{"releaseDate":"", "developer":""}</textarea>
+
+      <button type="submit">Add Game</button>
+    </form>
+    <p id="result"></p>
+  </div>
+
+  <script>
+    const token = localStorage.getItem("token");
+    if (!token) window.location.href = "index.html";
+
+    document.getElementById("addGameForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const gameData = {
+        title: document.getElementById("title").value,
+        genre: document.getElementById("genre").value,
+        photo: document.getElementById("photo").value,
+        optionalFields: JSON.parse(document.getElementById("optionalFields").value)
+      };
+
+      const response = await fetch("http://localhost:8080/games/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(gameData)
+      });
+
+      const result = document.getElementById("result");
+      if (response.ok) {
+        result.style.color = "green";
+        result.innerText = "Game added successfully!";
+      } else {
+        result.style.color = "red";
+        result.innerText = "Failed to add game.";
+      }
+    });
+  </script>
+</body>
+</html>
