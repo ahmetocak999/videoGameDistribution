@@ -21,8 +21,6 @@ public class UserController {
 
     @Autowired
     UserService userService;
-    @Autowired
-    JwtService jwtService;
 
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     @GetMapping("/all")

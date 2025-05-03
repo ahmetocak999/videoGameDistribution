@@ -44,19 +44,35 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource)) // ✅ manuel tanımladığımız bean'e bağlıyor
-                // 🔥 Önemli değişiklik
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/auth/login", "/auth/register").permitAll()
+                        .requestMatchers(
+                                "/auth/login",
+                                "/auth/register",
+                                "/",
+                                "/index.html",
+                                "/home.html",
+                                "/games.html",
+                                "/my-games.html",
+                                "/add-game.html",
+                                "/admin.html",
+                                "/manage-games.html",
+                                "/manage-users.html",
+                                "/register.html",   // 🔥 Bunu da ekliyoruz
+                                "/static/**",
+                                "/css/**", "/js/**", "/images/**"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
+
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
+
 
 
 
